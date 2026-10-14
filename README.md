@@ -1,51 +1,46 @@
-# Red de acopio AgriCorp: microservicios gRPC
+# AgriCorp: sistema distribuido con gRPC para una red de acopio agrícola
 
-Construí este sistema distribuido para una red de acopio de café y cacao en Nariño. En lugar de exponer una API REST con JSON sobre HTTP/1.1, diseñé todo a partir de un contrato Protocol Buffers y comuniqué los componentes con gRPC sobre HTTP/2, usando serialización binaria y streaming nativo.
+## Caso de estudio
 
-![Precios](docs/precios.png)
+Desarrollé un sistema distribuido para una red de acopio agrícola enfocada en el monitoreo y la gestión de productos como café y cacao en regiones de alta producción. El sistema resuelve la ineficiencia de las arquitecturas REST tradicionales basadas en texto (JSON sobre HTTP/1.1) usando gRPC y Protocol Buffers sobre HTTP/2, con serialización binaria compacta y soporte nativo para streaming de datos.
 
-## Qué resolví
+Despliegue: https://agricorp-grpc.onrender.com
 
-- **Contrato como única fuente de verdad.** El archivo `protos/agricultural/v1/agricultural_market.proto` define servicios, mensajes y el enum `PriceTrend`. Servidores y clientes se generan desde ahí con `grpc_tools.protoc`; nadie escribe controladores HTTP ni tipos a mano. Amplié el contrato sin romper compatibilidad: los campos originales conservan sus números (1 a 4) y lo nuevo usa números nuevos.
-- **Dos microservicios realmente independientes.** Cada uno corre en su propio proceso del sistema operativo, con su propio puerto y su propio health check (`grpc.health.v1`). Si detengo uno, el otro sigue atendiendo y el dashboard lo muestra.
-  - **Pricing Microservice (50051)**: llamadas unarias `ListProducts` y `GetProductPrice`. Devuelve precio actual, precio anterior, variación porcentual y tendencia.
-  - **Telemetry Microservice (50052)**: client streaming `StreamTelemetry`. Recibe miles de lecturas IoT por un solo stream y responde con un resumen: promedios, rango, peso total, alertas de almacenamiento y bytes recibidos.
-- **Sin verbos HTTP.** No existe ningún `GET` ni `POST` en el backend; todo son métodos RPC tipados.
-- **Evidencia de eficiencia.** Cada llamada mide el tamaño real del mensaje Protobuf y el del mismo mensaje en JSON compacto, y el dashboard muestra la diferencia. En un lote de 1.000 lecturas, Protobuf ocupa aproximadamente la mitad.
-- **Programación orientada a objetos y SOLID.** Repositorio, simulador de mercado, política de almacenamiento, validador, agregador, servicers, proxys de cliente, sonda de salud e inspector de bytes son clases con una sola responsabilidad. Las dependencias se inyectan por constructor.
-- **Errores gRPC con significado.** Uso `NOT_FOUND` para productos inexistentes, `INVALID_ARGUMENT` para lecturas fuera de rango y `UNAVAILABLE` cuando un servicio no responde; el dashboard traduce cada código a un mensaje claro.
+## Cómo implementé gRPC
 
-## Estructura
+**Contrato como única fuente de verdad.** Diseñé la API a partir del archivo `protos/agricultural/v1/agricultural_market.proto`, no escribiendo controladores HTTP. Ahí están definidos los servicios, los mensajes y los tipos. El código de servidores y clientes se genera desde ese archivo con `grpc_tools.protoc`, así que ambos lados comparten exactamente los mismos tipos de punta a punta.
 
-```
-protos/agricultural/v1/agricultural_market.proto   contrato SSOT
-agricultural/v1/                                   código generado (pb2, pb2_grpc, pyi)
-services/
-  server_runner.py                                 servidor gRPC reutilizable con health check y apagado limpio
-  pricing/                                         repositorio, simulador de mercado, servicer, servidor
-  telemetry/                                       política, validador, agregador, servicer, servidor
-clients/                                           proxys gRPC, sonda de salud, inspector de bytes, simulador IoT
-frontend/                                          dashboard Streamlit (vistas, componentes, tema, i18n)
-frontend/locales/es.json                           textos de la interfaz en español
-tests/                                             pruebas de integración contra servidores gRPC reales
-launcher.py                                        levanta los tres procesos y espera a que estén sanos
-tools/generate_contracts.py                        regenera el código desde el .proto
-```
+**Dos microservicios independientes.** Cada uno corre en su propio proceso, con su propio puerto y su propio health check (`grpc.health.v1`):
 
-## Cómo lo ejecuto en local
+- **Pricing Microservice (puerto 50051):** atiende llamadas unarias. `ListProducts` entrega el catálogo y `GetProductPrice` devuelve el precio actual, el precio anterior, la variación porcentual y la tendencia del producto.
+- **Telemetry Microservice (puerto 50052):** atiende client streaming. Con `StreamTelemetry`, una estación IoT abre un solo stream, envía miles de lecturas de temperatura, humedad y peso, y al cerrarlo recibe un resumen con promedios, rangos, peso total y alertas de almacenamiento.
 
-Necesito Python 3.12 o superior.
+**Sin verbos HTTP.** El backend no tiene `GET` ni `POST`; toda la comunicación son métodos RPC tipados sobre HTTP/2.
+
+**Programación orientada a objetos.** El backend y los clientes están organizados en clases con una sola responsabilidad: repositorio de precios, simulador de mercado, política de almacenamiento, validador, agregador de telemetría, servicers y proxys de cliente. Las dependencias se inyectan por constructor.
+
+**Manejo de errores gRPC.** Uso `NOT_FOUND` para productos inexistentes, `INVALID_ARGUMENT` para lecturas fuera de rango y `UNAVAILABLE` cuando un servicio no responde.
+
+**Dashboard.** Lo hice en Streamlit y se conecta a los dos microservicios por canales gRPC. Muestra el estado de cada servicio, los resultados de cada llamada y la diferencia de tamaño entre el mensaje en Protobuf y el mismo mensaje en JSON.
+
+## Cómo ejecutarlo
+
+Requisitos: Python 3.12 o superior y Git.
 
 ```bash
+git clone https://github.com/solartedaniers/AgriCorp-gRPC-.git
+cd AgriCorp-gRPC-
+
 python -m venv .venv
-.venv\Scripts\activate          # en Windows
-source .venv/bin/activate       # en Linux o macOS
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # Linux o macOS
+
 pip install -r requirements.txt
 python tools/generate_contracts.py
 python launcher.py
 ```
 
-Abro `http://localhost:8501`. El launcher arranca el Pricing y el Telemetry como procesos separados, espera a que ambos respondan `SERVING` y luego inicia el dashboard.
+Luego abro `http://localhost:8501`. El launcher arranca el Pricing y el Telemetry como procesos separados, espera a que ambos estén disponibles y después inicia el dashboard.
 
 Para correr las pruebas:
 
@@ -53,30 +48,12 @@ Para correr las pruebas:
 python -m pytest -q
 ```
 
-Si quiero ver los microservicios en contenedores separados, uso Docker Compose:
+Con Docker:
 
 ```bash
 docker compose up --build
 ```
 
-## Cómo lo despliego en Render
+## Autor
 
-Render ofrece un solo puerto público por servicio web, así que en la nube los tres procesos viven en el mismo contenedor y se comunican por `localhost` sobre HTTP/2; siguen siendo procesos independientes, cada uno con su puerto.
-
-1. Subo este proyecto a mi repositorio de GitHub, reemplazando los archivos anteriores.
-2. En Render, en el servicio `agricultural-microservice`, dejo el runtime en Docker. El `Dockerfile` instala dependencias, regenera el código desde el `.proto`, corre las pruebas y arranca con `python launcher.py`.
-3. En Settings, pongo `/_stcore/health` como Health Check Path.
-4. Hago Manual Deploy y elijo "Clear build cache & deploy".
-
-También dejé un `render.yaml` por si prefiero crear el servicio como Blueprint.
-
-## Telemetría y contrato
-
-![Telemetría](docs/telemetria.png)
-
-![Contrato](docs/contrato.png)
-
-## Notas
-
-- Los precios son de referencia y varían con un paseo aleatorio acotado (máximo 15 % alrededor del precio base) para simular un mercado en tiempo real.
-- Una lectura genera alerta si la temperatura pasa de 28 °C o la humedad relativa pasa de 75 %, condiciones que favorecen hongos en café y cacao almacenados.
+Daniers Alexander Solarte Lima
