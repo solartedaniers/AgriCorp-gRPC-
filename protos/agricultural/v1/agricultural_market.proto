@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package agricultural.market.v1;
+
+service PricingService {
+    rpc GetProductPrice (PriceRequest) returns (PriceResponse);
+    rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
+}
+
+service TelemetryService {
+    rpc StreamTelemetry (stream TelemetryData) returns (TelemetrySummary);
+}
+
+enum PriceTrend {
+    PRICE_TREND_UNSPECIFIED = 0;
+    PRICE_TREND_UP = 1;
+    PRICE_TREND_DOWN = 2;
+    PRICE_TREND_STABLE = 3;
+}
+
+message Product {
+    string product_id = 1;
+    string name = 2;
+    string unit = 3;
+    string origin_region = 4;
+}
+
+message ListProductsRequest {}
+
+message ListProductsResponse {
+    repeated Product products = 1;
+}
+
+message PriceRequest {
+    string product_id = 1;
+}
+
+message PriceResponse {
+    string product_id = 1;
+    double current_price = 2;
+    string currency = 3;
+    int64 timestamp = 4;
+    double previous_price = 5;
+    double change_percent = 6;
+    PriceTrend trend = 7;
+    Product product = 8;
+}
+
+message TelemetryData {
+    string station_id = 1;
+    double temperature = 2;
+    double humidity = 3;
+    double weight_kg = 4;
+    int64 timestamp = 5;
+    string product_id = 6;
+}
+
+message TelemetrySummary {
+    int32 processed_records = 1;
+    bool success = 2;
+    string message = 3;
+    double avg_temperature = 4;
+    double min_temperature = 5;
+    double max_temperature = 6;
+    double avg_humidity = 7;
+    double total_weight_kg = 8;
+    int32 alert_count = 9;
+    int32 station_count = 10;
+    double server_processing_ms = 11;
+    int64 received_bytes = 12;
+}

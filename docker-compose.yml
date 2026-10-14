@@ -1,0 +1,28 @@
+services:
+  pricing:
+    build: .
+    command: ["python", "-m", "services.pricing.server"]
+    environment:
+      PRICING_PORT: "50051"
+    expose:
+      - "50051"
+
+  telemetry:
+    build: .
+    command: ["python", "-m", "services.telemetry.server"]
+    environment:
+      TELEMETRY_PORT: "50052"
+    expose:
+      - "50052"
+
+  dashboard:
+    build: .
+    command: ["python", "-m", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    environment:
+      PRICING_SERVICE_ADDR: "pricing:50051"
+      TELEMETRY_SERVICE_ADDR: "telemetry:50052"
+    ports:
+      - "8501:8501"
+    depends_on:
+      - pricing
+      - telemetry

@@ -1,0 +1,24 @@
+[theme]
+base = "light"
+primaryColor = "#2F6B4A"
+backgroundColor = "#F3F5F1"
+secondaryBackgroundColor = "#E8EDE7"
+textColor = "#18261E"
+borderColor = "#D6DED6"
+font = "Public Sans:https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap, sans-serif"
+headingFont = "Bricolage Grotesque:https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap, sans-serif"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap, monospace"
+baseRadius = "10px"
+buttonRadius = "8px"
+showWidgetBorder = true
+chartCategoricalColors = ["#2F6B4A", "#B8873A", "#A8323A", "#4B3427", "#6E8F7B"]
+
+[server]
+headless = true
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"

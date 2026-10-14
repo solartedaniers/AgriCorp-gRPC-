@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: agricultural-microservice
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PRICING_SERVICE_ADDR
+        value: localhost:50051
+      - key: TELEMETRY_SERVICE_ADDR
+        value: localhost:50052
